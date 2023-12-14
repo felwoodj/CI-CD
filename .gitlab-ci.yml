@@ -1,0 +1,80 @@
+stages:
+  - build
+  - clang-format
+  - test
+  - deploy
+
+build_cat/grep:
+  stage: build
+  only:
+    - develop
+  script:
+    - echo "BUILD CAT AND GREP"
+    - cd src/cat/
+    - make all
+    - cd ../grep/
+    - make all
+  artifacts:
+    paths:
+      - src/cat/s21_cat
+      - src/grep/s21_grep
+    expire_in: 30 days
+  after_script:
+    - sh src/telegram.sh "build"
+
+code_style_cat:
+  stage: clang-format
+  only:
+    - develop
+  script:
+    - cp materials/linters/.clang-format src/cat/
+    - cd src/cat/
+    - clang-format -n --style=Google *.c *.h 2>clang_result.txt
+    - if [ -s clang_result.txt ]; then
+    - cat clang_result.txt
+    - exit 1; fi
+  after_script:
+    - sh src/telegram.sh "code_style_cat"
+
+code_style_grep:
+  stage: clang-format
+  only:
+    - develop
+  script:
+    - cp materials/linters/.clang-format src/grep/
+    - cd src/grep/
+    - clang-format -n --style=Google *.c *.h 2>clang_result.txt
+    - if [ -s clang_result.txt ]; then
+    - cat clang_result.txt
+    - exit 1; fi
+  after_script:
+    - sh src/telegram.sh "code_style_grep"
+
+test_cat:
+  stage: test
+  script:
+    - cd src/cat/
+    - bash s21_cat_tests.sh
+  when: on_success
+  after_script:
+    - sh src/telegram.sh "test_cat"
+
+test_grep:
+  stage: test
+  script:
+    - cd src/grep/
+    - bash s21_grep_tests.sh
+  when: on_success
+  after_script:
+    - sh src/telegram.sh "test_grep"
+
+deploy_job:
+  stage: deploy
+  script:
+    - expect src/deploy.sh
+  when: manual
+  after_script:
+    - sh src/telegram.sh "deploy"
+
+
+
